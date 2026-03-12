@@ -1,13 +1,13 @@
 import io
 import math
 import re
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import pandas as pd
 import streamlit as st
 
 
-st.set_page_config(page_title="Table Matcher", page_icon="✅", layout="wide")
+st.set_page_config(page_title="Code + Value Matcher", page_icon="✅", layout="wide")
 
 
 # ---------------------------
@@ -78,12 +78,10 @@ def read_main_table(uploaded_file) -> pd.DataFrame:
     name = uploaded_file.name.lower()
 
     if name.endswith(".xlsx") or name.endswith(".xls"):
-        df = pd.read_excel(uploaded_file)
-        return df
+        return pd.read_excel(uploaded_file)
 
     raw = uploaded_file.read()
 
-    # Try common encodings / separators
     attempts = [
         {"encoding": "utf-16", "sep": "\t"},
         {"encoding": "utf-8", "sep": "\t"},
@@ -222,7 +220,8 @@ def build_results(main_df: pd.DataFrame, ref_df: pd.DataFrame, tolerance: float)
     if df.shape[1] < 7:
         raise ValueError("Main table must contain at least 7 columns so A, B, D, F, G exist.")
 
-    # Fixed positional columns
+    # Fixed positional columns:
+    # A = 1st, B = 2nd, D = 4th, F = 6th, G = 7th
     col_a = df.columns[0]
     col_b = df.columns[1]
     col_d = df.columns[3]
@@ -269,7 +268,7 @@ def build_results(main_df: pd.DataFrame, ref_df: pd.DataFrame, tolerance: float)
         best_main_row = None
         best_found_in = ""
 
-        for main_idx, main_row in matches.iterrows():
+        for _, main_row in matches.iterrows():
             found_in_list = []
             if normalize_code(main_row["_A_code"]) == ref_code:
                 found_in_list.append("A")
@@ -337,6 +336,14 @@ def to_tsv(df: pd.DataFrame) -> str:
     return df.to_csv(sep="\t", index=False)
 
 
+def highlight_problem_rows(row):
+    if row["found"] == "No":
+        return ["background-color: #ffefef"] * len(row)
+    if row["exact_match"] != "✓":
+        return ["background-color: #ffefef"] * len(row)
+    return [""] * len(row)
+
+
 # ---------------------------
 # UI
 # ---------------------------
@@ -396,16 +403,8 @@ if run:
         result_df = build_results(main_df, ref_df, tolerance=tolerance)
 
         st.markdown("### 3. Result")
-        def highlight_rows(row):
-    if row["found"] == "No":
-        return ["background-color: #ffdddd"] * len(row)
-    if row["exact_match"] != "✓":
-        return ["background-color: #ffdddd"] * len(row)
-    return [""] * len(row)
-
-styled_df = result_df.style.apply(highlight_rows, axis=1)
-
-st.dataframe(styled_df, use_container_width=True)
+        styled_result = result_df.style.apply(highlight_problem_rows, axis=1)
+        st.dataframe(styled_result, use_container_width=True)
 
         tsv_output = to_tsv(result_df)
 
@@ -420,5 +419,4 @@ st.dataframe(styled_df, use_container_width=True)
         )
 
     except Exception as e:
-
         st.error(str(e))
