@@ -396,7 +396,16 @@ if run:
         result_df = build_results(main_df, ref_df, tolerance=tolerance)
 
         st.markdown("### 3. Result")
-        st.dataframe(result_df, use_container_width=True)
+        def highlight_rows(row):
+    if row["found"] == "No":
+        return ["background-color: #ffdddd"] * len(row)
+    if row["exact_match"] != "✓":
+        return ["background-color: #ffdddd"] * len(row)
+    return [""] * len(row)
+
+styled_df = result_df.style.apply(highlight_rows, axis=1)
+
+st.dataframe(styled_df, use_container_width=True)
 
         tsv_output = to_tsv(result_df)
 
@@ -411,4 +420,5 @@ if run:
         )
 
     except Exception as e:
+
         st.error(str(e))
